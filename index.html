@@ -1,0 +1,495 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REAL LIFE SOCCER SIMULATOR RLF</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ background:#071522;
+ color:white;
+ font-family:Arial,sans-serif;
+}
+header{
+ background:#06101b;
+ padding:20px;
+ text-align:center;
+ border-bottom:3px solid #168bd0;
+}
+h1{font-size:28px;margin:5px}
+h1 span{color:#168bd0}
+main{max-width:950px;margin:auto;padding:20px}
+.menu{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+ gap:15px;
+ margin-top:25px;
+}
+button{
+ background:#087bc0;
+ color:white;
+ border:0;
+ border-radius:12px;
+ padding:17px;
+ font-size:17px;
+ font-weight:bold;
+ cursor:pointer;
+}
+button:hover{background:#129ce8}
+.mode{
+ background:#132c40;
+ border:1px solid #31536b;
+ min-height:130px;
+}
+.mode strong{display:block;font-size:20px;margin-bottom:10px}
+.panel{
+ background:#132638;
+ padding:20px;
+ border-radius:15px;
+ margin-top:20px;
+}
+.hidden{display:none}
+select{
+ width:100%;
+ padding:13px;
+ margin:10px 0;
+ border-radius:8px;
+ background:#071522;
+ color:white;
+ font-size:16px;
+}
+#field{
+ width:100%;
+ height:420px;
+ background:repeating-linear-gradient(
+  0deg,#218343 0px,#218343 35px,
+  #267c40 35px,#267c40 70px
+ );
+ border:5px solid white;
+ position:relative;
+ overflow:hidden;
+ border-radius:8px;
+}
+#field:before{
+ content:"";
+ position:absolute;
+ left:0;right:0;top:50%;
+ border-top:3px solid white;
+}
+#field:after{
+ content:"";
+ position:absolute;
+ width:100px;height:100px;
+ border:3px solid white;
+ border-radius:50%;
+ left:50%;top:50%;
+ transform:translate(-50%,-50%);
+}
+.player{
+ width:23px;height:23px;
+ border-radius:50%;
+ position:absolute;
+ z-index:2;
+}
+.blue{background:#078bdf}
+.red{background:#e52c3b}
+#ball{
+ width:14px;height:14px;
+ background:white;
+ border:2px solid black;
+ border-radius:50%;
+ position:absolute;
+ left:50%;top:65%;
+ z-index:3;
+}
+#score{
+ text-align:center;
+ font-size:24px;
+ font-weight:bold;
+ margin:15px;
+}
+.controls{
+ display:flex;
+ justify-content:center;
+ gap:10px;
+ flex-wrap:wrap;
+ margin-top:15px;
+}
+small{color:#b9cbd9}
+</style>
+</head>
+<body>
+<header>
+<h1>REAL LIFE <span>SOCCER</span></h1>
+<div>SIMULATOR RLF</div>
+</header>
+<main>
+<section id="home">
+<h2>Benvenuto nel calcio reale!</h2>
+<p>Diventa allenatore e scendi in campo.</p>
+<div class="menu">
+<button class="mode" onclick="kickoff()">
+⚽<strong>CALCIO D'INIZIO</strong>
+<small>Gioca una partita</small>
+</button>
+<button class="mode" onclick="career()">
+🏆<strong>CARRIERA ALLENATORE</strong>
+<small>Costruisci la tua squadra</small>
+</button>
+<button class="mode" onclick="clubs()">
+🌍<strong>SQUADRE E CAMPIONATI</strong>
+<small>Scopri i club</small>
+</button>
+</div>
+</section>
+<section id="setup" class="panel hidden"></section>
+<section id="careerPanel" class="panel hidden"></section>
+<section id="clubsPanel" class="panel hidden"></section>
+<section id="matchPanel" class="panel hidden">
+<div id="score">0 - 0</div>
+<div id="field">
+<div class="player blue" style="left:50%;top:70%"></div>
+<div class="player blue" style="left:25%;top:60%"></div>
+<div class="player blue" style="left:75%;top:60%"></div>
+<div class="player red" style="left:50%;top:25%"></div>
+<div class="player red" style="left:25%;top:35%"></div>
+<div class="player red" style="left:75%;top:35%"></div>
+<div id="ball"></div>
+</div>
+<div class="controls">
+<button onclick="move(0,-12)">▲</button>
+<button onclick="move(-12,0)">◀</button>
+<button onclick="move(12,0)">▶</button>
+<button onclick="move(0,12)">▼</button>
+<button onclick="shoot()">TIRO</button>
+<button onclick="passBall()">PASSAGGIO</button>
+<button onclick="endMatch()">ESCI</button>
+</div>
+</section>
+</main>
+</body>
+</html>
+
+<script>
+const squadre = [
+ {nome:"Napoli",lega:"Serie A",colore:"azzurro",val:86},
+ {nome:"Inter",lega:"Serie A",colore:"blu",val:88},
+ {nome:"Milan",lega:"Serie A",colore:"rosso",val:85},
+ {nome:"Juventus",lega:"Serie A",colore:"bianco",val:84},
+ {nome:"Roma",lega:"Serie A",colore:"rosso",val:82},
+ {nome:"Atalanta",lega:"Serie A",colore:"blu",val:81},
+ {nome:"Real Madrid",lega:"LaLiga",colore:"bianco",val:92},
+ {nome:"Barcellona",lega:"LaLiga",colore:"blu",val:90},
+ {nome:"Manchester City",lega:"Premier League",colore:"azzurro",val:91},
+ {nome:"Arsenal",lega:"Premier League",colore:"rosso",val:87},
+ {nome:"Liverpool",lega:"Premier League",colore:"rosso",val:89},
+ {nome:"Bayern Monaco",lega:"Bundesliga",colore:"rosso",val:90},
+ {nome:"Borussia Dortmund",lega:"Bundesliga",colore:"giallo",val:85},
+ {nome:"PSG",lega:"Ligue 1",colore:"blu",val:88}
+];
+
+let squadraCasa = 0;
+let squadraOspite = 2;
+let carriera = null;
+let golCasa = 0;
+let golOspite = 0;
+
+function nascondi(){
+ document.getElementById("setup").classList.add("hidden");
+ document.getElementById("careerPanel").classList.add("hidden");
+ document.getElementById("clubsPanel").classList.add("hidden");
+ document.getElementById("matchPanel").classList.add("hidden");
+ document.getElementById("home").classList.remove("hidden");
+}
+
+function kickoff(){
+ nascondi();
+ document.getElementById("home").classList.add("hidden");
+ let p=document.getElementById("setup");
+ p.classList.remove("hidden");
+
+ let opzioni=squadre.map((s,i)=>
+ `<option value="${i}">${s.nome} - ${s.lega}</option>`
+ ).join("");
+
+ p.innerHTML=`
+ <h2>⚽ CALCIO D'INIZIO</h2>
+ <label>Squadra di casa</label>
+ <select id="casa">${opzioni}</select>
+ <label>Squadra ospite</label>
+ <select id="ospite">${opzioni}</select>
+ <button onclick="iniziaScelta()">GIOCA PARTITA</button>
+ <button onclick="nascondi()">INDIETRO</button>
+ `;
+ document.getElementById("casa").value=0;
+ document.getElementById("ospite").value=2;
+}
+
+function iniziaScelta(){
+ squadraCasa=Number(document.getElementById("casa").value);
+ squadraOspite=Number(document.getElementById("ospite").value);
+ if(squadraCasa===squadraOspite){
+  alert("Scegli due squadre differenti!");
+  return;
+ }
+ iniziaPartita();
+}
+
+function clubs(){
+ nascondi();
+ document.getElementById("home").classList.add("hidden");
+ let p=document.getElementById("clubsPanel");
+ p.classList.remove("hidden");
+ p.innerHTML="<h2>🌍 CLUB E CAMPIONATI</h2>";
+
+ let leghe=[...new Set(squadre.map(s=>s.lega))];
+
+ leghe.forEach(lega=>{
+  p.innerHTML+=`<h3>${lega}</h3>`;
+  squadre.filter(s=>s.lega===lega).forEach(s=>{
+   p.innerHTML+=`
+   <div class="panel">
+   <strong>${s.nome}</strong><br>
+   <small>Valutazione squadra: ${s.val}</small>
+   </div>`;
+  });
+ });
+ p.innerHTML+='<button onclick="nascondi()">INDIETRO</button>';
+}
+
+function career(){
+ nascondi();
+ document.getElementById("home").classList.add("hidden");
+ let p=document.getElementById("careerPanel");
+ p.classList.remove("hidden");
+
+ let opzioni=squadre.map((s,i)=>
+ `<option value="${i}">${s.nome} - ${s.lega}</option>`
+ ).join("");
+
+ p.innerHTML=`
+ <h2>🏆 CARRIERA ALLENATORE</h2>
+ <p>Scegli il club che vuoi allenare.</p>
+ <select id="clubCarriera">${opzioni}</select>
+ <button onclick="creaCarriera()">INIZIA CARRIERA</button>
+ <div id="datiCarriera"></div>
+ <button onclick="nascondi()">INDIETRO</button>
+ `;
+}
+
+function creaCarriera(){
+ let club=Number(document.getElementById("clubCarriera").value);
+ carriera={
+  club:club,
+  partite:0,
+  vittorie:0,
+  pareggi:0,
+  sconfitte:0,
+  punti:0
+ };
+ salvaCarriera();
+ mostraCarriera();
+}
+
+function salvaCarriera(){
+ localStorage.setItem("rlf_carriera",JSON.stringify(carriera));
+}
+
+function mostraCarriera(){
+ let c=squadre[carriera.club];
+ document.getElementById("datiCarriera").innerHTML=`
+ <div class="panel">
+ <h2>${c.nome}</h2>
+ <p>Stagione 2026/27</p>
+ <p>Partite: ${carriera.partite}</p>
+ <p>Vittorie: ${carriera.vittorie}</p>
+ <p>Pareggi: ${carriera.pareggi}</p>
+ <p>Sconfitte: ${carriera.sconfitte}</p>
+ <h2>Punti: ${carriera.punti}</h2>
+ <button onclick="partitaCarriera()">GIOCA PROSSIMA PARTITA</button>
+ </div>`;
+}
+
+let salvata=localStorage.getItem("rlf_carriera");
+if(salvata){
+ try{carriera=JSON.parse(salvata)}catch(e){}
+}
+</script>
+</body>
+
+<script>
+let golCasa = 0;
+let golOspite = 0;
+let squadraCasa = "Napoli";
+let squadraOspite = "Inter";
+let giocatore = null;
+let pallone = null;
+let campo = null;
+let velocita = 5;
+let partitaAttiva = false;
+
+function iniziaPartita() {
+    squadraCasa = document.getElementById("teamSelect")?.value || "Napoli";
+    squadraOspite = squadraCasa === "Napoli" ? "Inter" : "Napoli";
+    avviaCampo();
+}
+
+function partitaCarriera() {
+    squadraCasa = typeof carriera !== "undefined" && carriera
+        ? carriera.squadra : "Napoli";
+    squadraOspite = "Inter";
+    avviaCampo();
+}
+
+function avviaCampo() {
+    document.getElementById("home").style.display = "none";
+    ["setup", "careerPanel", "clubsPanel"].forEach(id => {
+        let p = document.getElementById(id);
+        if (p) p.style.display = "none";
+    });
+
+    let pannello = document.getElementById("matchPanel");
+    pannello.style.display = "block";
+
+    golCasa = 0;
+    golOspite = 0;
+    partitaAttiva = true;
+
+    campo = pannello.querySelector("#field");
+    giocatore = pannello.querySelector("#player");
+    pallone = pannello.querySelector("#ball");
+
+    if (!campo) {
+        campo = document.createElement("div");
+        campo.id = "field";
+        pannello.appendChild(campo);
+    }
+
+    campo.style.position = "relative";
+    campo.style.width = "100%";
+    campo.style.maxWidth = "650px";
+    campo.style.height = "350px";
+    campo.style.margin = "15px auto";
+    campo.style.background = "#168b3d";
+    campo.style.border = "4px solid white";
+    campo.style.overflow = "hidden";
+
+    campo.innerHTML = `
+      <div style="position:absolute;left:50%;top:0;height:100%;border-left:2px solid white"></div>
+      <div style="position:absolute;left:40%;top:25%;width:20%;height:50%;border:2px solid white"></div>
+      <div style="position:absolute;left:0;top:25%;width:12%;height:50%;border:2px solid white"></div>
+      <div style="position:absolute;right:0;top:25%;width:12%;height:50%;border:2px solid white"></div>
+      <div id="player" style="position:absolute;left:20%;top:48%;width:24px;height:32px;background:#1976d2;border-radius:7px;border:2px solid white"></div>
+      <div id="ball" style="position:absolute;left:25%;top:50%;width:14px;height:14px;background:white;border:2px solid black;border-radius:50%"></div>
+      <div id="opponent" style="position:absolute;right:20%;top:48%;width:24px;height:32px;background:#e53935;border-radius:7px;border:2px solid white"></div>
+    `;
+
+    giocatore = document.getElementById("player");
+    pallone = document.getElementById("ball");
+
+    let tabellone = document.getElementById("score");
+    if (!tabellone) {
+        tabellone = document.createElement("h2");
+        tabellone.id = "score";
+        pannello.insertBefore(tabellone, campo);
+    }
+
+    tabellone.style.textAlign = "center";
+    aggiornaRisultato();
+
+    let istruzioni = document.createElement("p");
+    istruzioni.id = "instructions";
+    istruzioni.textContent = "Muoviti con le frecce o WASD. Premi SPAZIO per tirare!";
+    pannello.insertBefore(istruzioni, campo);
+
+    creaComandi();
+}
+
+function aggiornaRisultato() {
+    let tabellone = document.getElementById("score");
+    if (tabellone) {
+        tabellone.textContent =
+            squadraCasa + " " + golCasa + " - " +
+            golOspite + " " + squadraOspite;
+    }
+}
+
+function creaComandi() {
+    let vecchi = document.getElementById("comandiPartita");
+    if (vecchi) vecchi.remove();
+
+    let comandi = document.createElement("div");
+    comandi.id = "comandiPartita";
+    comandi.style.textAlign = "center";
+    comandi.style.margin = "12px";
+
+    comandi.innerHTML = `
+      <button onclick="muovi(0,-1)">⬆️</button><br>
+      <button onclick="muovi(-1,0)">⬅️</button>
+      <button onclick="muovi(0,1)">⬇️</button>
+      <button onclick="muovi(1,0)">➡️</button>
+      <br><br>
+      <button onclick="tira()">⚽ TIRA</button>
+      <button onclick="tornaMenu()">MENU</button>
+    `;
+
+    document.getElementById("matchPanel").appendChild(comandi);
+}
+
+function muovi(x, y) {
+    if (!partitaAttiva || !giocatore) return;
+
+    let left = parseFloat(giocatore.style.left) || 20;
+    let top = parseFloat(giocatore.style.top) || 48;
+
+    left = Math.max(1, Math.min(94, left + x * velocita / 2));
+    top = Math.max(1, Math.min(88, top + y * velocita / 2));
+
+    giocatore.style.left = left + "%";
+    giocatore.style.top = top + "%";
+
+    pallone.style.left = (left + 5) + "%";
+    pallone.style.top = (top + 2) + "%";
+}
+
+function tira() {
+    if (!partitaAttiva) return;
+
+    let posizione = parseFloat(giocatore.style.left) || 20;
+
+    if (posizione > 65) {
+        golCasa++;
+        aggiornaRisultato();
+        giocatore.style.left = "20%";
+        giocatore.style.top = "48%";
+        pallone.style.left = "25%";
+        pallone.style.top = "50%";
+    } else {
+        alert("Continua ad avanzare verso la porta avversaria!");
+    }
+}
+
+document.addEventListener("keydown", function(e) {
+    if (!partitaAttiva) return;
+
+    if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") muovi(0,-1);
+    if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") muovi(0,1);
+    if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") muovi(-1,0);
+    if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") muovi(1,0);
+    if (e.code === "Space") {
+        e.preventDefault();
+        tira();
+    }
+});
+
+function tornaMenu() {
+    partitaAttiva = false;
+    document.getElementById("matchPanel").style.display = "none";
+    document.getElementById("home").style.display = "block";
+}
+</script>
+</body>
+</html>
